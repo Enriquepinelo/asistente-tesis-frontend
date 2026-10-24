@@ -34,6 +34,10 @@ export interface PropuestaGenerada {
   modelo_ia?: string;
   version: number;
   estado: 'generada' | 'revisada' | 'ajustada' | 'aprobada';
+  fecha_generacion?: string;
+  nombre_estudiante?: string;
+  carnet?: string;
+  area_interes?: string;
 }
 
 export interface HistorialFlujo {
