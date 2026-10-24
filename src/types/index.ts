@@ -5,7 +5,8 @@ export interface Usuario {
   nombre_usuario: string;
   correo: string;
   rol: Rol;
-  nombre_completo?: string;
+  nombre_completo?: string | null;
+  estado?: "activo" | "inactivo";
 }
 
 export interface Formulario {
