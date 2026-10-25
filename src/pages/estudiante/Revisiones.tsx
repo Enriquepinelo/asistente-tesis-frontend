@@ -4,6 +4,8 @@ import { EstadoPill } from '../../components/EstadoPill';
 import { useAuth } from '../../context/AuthContext';
 import { cargarObservaciones, marcarVistas, ultimaVista, type Observacion } from '../../api/revisiones';
 import type { PropuestaGenerada } from '../../types';
+import { FileText } from 'lucide-react';
+import { descargarDocumento, listarDocumentos, tamano, type DocumentoRevision } from '../../api/documentos';
 
 // La base de datos guarda la hora en UTC sin zona: se agrega "Z" para mostrarla en hora local.
 function fecha(iso: string) {
@@ -24,12 +26,22 @@ export default function Revisiones() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vistaAnterior] = useState(() => ultimaVista(usuario?.correo));
+  const [docs, setDocs] = useState<Record<number, DocumentoRevision[]>>({});
 
   useEffect(() => {
     Promise.all([api.get(endpoints.propuestas), cargarObservaciones()])
       .then(([{ data }, o]) => {
-        setPropuestas(data.propuestas ?? data);
+        const lista: PropuestaGenerada[] = data.propuestas ?? data;
+        setPropuestas(lista);
         setObs(o);
+        // Documentos que subió el asesor (si la función ya está activada).
+        lista
+          .filter((p) => p.estado !== 'generada')
+          .forEach((p) =>
+            listarDocumentos(p.id_propuesta)
+              .then((d) => setDocs((x) => ({ ...x, [p.id_propuesta]: d })))
+              .catch(() => undefined),
+          );
         marcarVistas(usuario?.correo, o);
       })
       .catch((err) => setError(err?.response?.data?.mensaje || 'No se pudieron cargar tus revisiones.'))
@@ -72,6 +84,20 @@ export default function Revisiones() {
                 <EstadoPill estado={p.estado} />
               </div>
               <div className="p-6">
+                {(docs[p.id_propuesta]?.length ?? 0) > 0 && (
+                  <div className="mb-4">
+                    <p className="text-[13px] text-slate-soft mb-1.5">Documentos de tu asesor</p>
+                    <ul className="space-y-1.5">
+                      {docs[p.id_propuesta].map((d) => (
+                        <li key={d.id_documento} className="flex items-center gap-2 text-[14px]">
+                          <FileText size={15} className="text-slate-soft" />
+                          <button className="underline" onClick={() => descargarDocumento(d).catch(() => undefined)}>{d.nombre_archivo}</button>
+                          <span className="text-[12.5px] text-slate-soft">{tamano(d.tamano_bytes)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {suyas.length === 0 ? (
                   <p className="text-[14px] text-slate-soft">Sin observaciones escritas.</p>
                 ) : (
