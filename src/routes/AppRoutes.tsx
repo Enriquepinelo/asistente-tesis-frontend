@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import FormularioTesis from '../pages/estudiante/FormularioTesis';
 import PropuestaGenerada from '../pages/estudiante/PropuestaGenerada';
 import HistorialEstudiante from '../pages/estudiante/HistorialEstudiante';
+import Revisiones from '../pages/estudiante/Revisiones';
 import BandejaRevision from '../pages/asesor/BandejaRevision';
 import PanelGeneral from '../pages/coordinador/PanelGeneral';
 import GestionUsuarios from '../pages/administrador/GestionUsuarios';
@@ -52,6 +53,15 @@ export function AppRoutes() {
           element={
             <RutaProtegida rolesPermitidos={['estudiante']}>
               <HistorialEstudiante />
+            </RutaProtegida>
+          }
+        />
+
+        <Route
+          path="/estudiante/revisiones"
+          element={
+            <RutaProtegida rolesPermitidos={['estudiante']}>
+              <Revisiones />
             </RutaProtegida>
           }
         />

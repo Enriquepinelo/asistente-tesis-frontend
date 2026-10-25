@@ -4,6 +4,12 @@ import { EstadoPill } from '../../components/EstadoPill';
 import type { PropuestaGenerada } from '../../types';
 
 type Estado = PropuestaGenerada['estado'];
+interface Observacion {
+  id_recomendacion: number;
+  contenido: string;
+  fecha_creacion: string;
+}
+type PropuestaRevision = PropuestaGenerada & { observaciones?: Observacion[] };
 const acciones: { estado: Estado; texto: string }[] = [
   { estado: 'revisada', texto: 'Marcar revisada' },
   { estado: 'ajustada', texto: 'Pedir ajustes' },
@@ -29,12 +35,15 @@ function lista(texto: string[] | string) {
 }
 
 export default function BandejaRevision() {
-  const [propuestas, setPropuestas] = useState<PropuestaGenerada[]>([]);
+  const [propuestas, setPropuestas] = useState<PropuestaRevision[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [abierta, setAbierta] = useState<number | null>(null);
   const [guardando, setGuardando] = useState<number | null>(null);
   const [filtro, setFiltro] = useState<Estado | 'todas'>('todas');
+  const [accion, setAccion] = useState<{ id: number; estado: Estado } | null>(null);
+  const [comentario, setComentario] = useState('');
+  const [aviso, setAviso] = useState<string | null>(null);
 
   useEffect(() => {
     cargarLista();
@@ -53,12 +62,27 @@ export default function BandejaRevision() {
       .finally(() => setCargando(false));
   }
 
-  async function actualizarEstado(id: number, estado: Estado) {
+  function abrirAccion(id: number, estado: Estado) {
+    setAccion({ id, estado });
+    setComentario('');
+    setError(null);
+    setAviso(null);
+  }
+
+  async function confirmarAccion() {
+    if (!accion) return;
+    const { id, estado } = accion;
+    if (estado === 'ajustada' && !comentario.trim()) {
+      setError('Escribe qué debe ajustar el estudiante.');
+      return;
+    }
     setGuardando(id);
     setError(null);
     try {
-      await api.patch(endpoints.propuestaPorId(id), { estado });
-      setPropuestas((ps) => ps.map((p) => (p.id_propuesta === id ? { ...p, estado } : p)));
+      await api.patch(endpoints.propuestaPorId(id), { estado, comentario: comentario.trim() });
+      setAccion(null);
+      setAviso('Listo. El estudiante verá el cambio en su sección Revisiones.');
+      cargarLista();
     } catch (err: any) {
       setError(err?.response?.data?.mensaje || 'No se pudo actualizar el estado.');
     } finally {
@@ -89,7 +113,8 @@ export default function BandejaRevision() {
         ))}
       </div>
 
-      {error && <p className="mb-4 text-danger text-[14px]">{error}</p>}
+      {error && !accion && <p className="mb-4 text-danger text-[14px]">{error}</p>}
+      {aviso && <p className="mb-4 text-ok text-[14px]">{aviso}</p>}
 
       {!cargando && visibles.length === 0 && !error && (
         <div className="folio p-8 max-w-lg">
@@ -152,13 +177,58 @@ export default function BandejaRevision() {
                     <button
                       key={a.estado}
                       disabled={guardando === p.id_propuesta || a.estado === p.estado}
-                      onClick={() => actualizarEstado(p.id_propuesta, a.estado)}
+                      onClick={() => abrirAccion(p.id_propuesta, a.estado)}
                       className={`btn-ghost !px-3.5 !py-1.5 text-[13px] ${a.estado === p.estado ? 'opacity-40' : ''}`}
                     >
                       {a.texto}
                     </button>
                   ))}
                 </div>
+
+                {accion?.id === p.id_propuesta && (
+                  <div className="mt-5 border-t border-paper-300 pt-5">
+                    <label className="label-field" htmlFor={`obs-${p.id_propuesta}`}>
+                      {accion.estado === 'ajustada'
+                        ? 'Qué debe ajustar el estudiante (obligatorio)'
+                        : 'Comentario para el estudiante (opcional)'}
+                    </label>
+                    <textarea
+                      id={`obs-${p.id_propuesta}`}
+                      className="input-field min-h-[110px]"
+                      maxLength={2000}
+                      value={comentario}
+                      onChange={(e) => setComentario(e.target.value)}
+                      placeholder={
+                        accion.estado === 'ajustada'
+                          ? 'Ej. Delimita la población a una institución y redacta el objetivo general con un verbo medible.'
+                          : 'Ej. Buen planteamiento, puedes continuar con el marco teórico.'
+                      }
+                    />
+                    {error && <p className="mt-2 text-danger text-[13.5px]">{error}</p>}
+                    <div className="mt-3 flex gap-2">
+                      <button className="btn-gold" disabled={guardando === p.id_propuesta} onClick={confirmarAccion}>
+                        {guardando === p.id_propuesta ? 'Guardando…' : 'Guardar y avisar al estudiante'}
+                      </button>
+                      <button className="btn-ghost" onClick={() => setAccion(null)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {p.observaciones && p.observaciones.length > 0 && (
+                  <div className="mt-5">
+                    <p className="text-[13px] text-slate-soft mb-2">Observaciones enviadas</p>
+                    <ul className="space-y-2">
+                      {p.observaciones.map((o) => (
+                        <li key={o.id_recomendacion} className="bg-paper-200 rounded-sm px-4 py-2.5 text-[14px]">
+                          <span className="text-slate-soft text-[12.5px] mr-2">{o.fecha_creacion}</span>
+                          {o.contenido}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           );

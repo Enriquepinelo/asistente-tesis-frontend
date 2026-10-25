@@ -55,4 +55,5 @@ export const endpoints = {
   historialPorFormulario: (idFormulario: number | string) => `/historial/formulario/${idFormulario}`,
   recomendaciones: (idFormulario: number | string) => `/recomendaciones/formulario/${idFormulario}`,
   usuarios: '/usuarios',
+  misRecomendaciones: '/recomendaciones',
 };

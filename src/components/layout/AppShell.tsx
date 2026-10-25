@@ -8,7 +8,10 @@ import {
   Users,
   BarChart3,
   GraduationCap,
+  MessageSquare,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { cargarObservaciones, ultimaVista } from '../../api/revisiones';
 import { useAuth } from '../../context/AuthContext';
 import type { Rol } from '../../types';
 
@@ -23,6 +26,7 @@ const navPorRol: Record<Rol, NavItem[]> = {
     { to: '/estudiante/formulario', label: 'Nuevo formulario', icon: FileText },
     { to: '/estudiante/propuesta', label: 'Mi propuesta', icon: LayoutGrid },
     { to: '/estudiante/historial', label: 'Historial', icon: History },
+    { to: '/estudiante/revisiones', label: 'Revisiones', icon: MessageSquare },
   ],
   asesor: [
     { to: '/asesor/bandeja', label: 'Bandeja de revisión', icon: ClipboardCheck },
@@ -44,6 +48,29 @@ const rolEtiqueta: Record<Rol, string> = {
 
 export function AppShell() {
   const { usuario, cerrarSesion } = useAuth();
+  const [nuevas, setNuevas] = useState(0);
+
+  // Aviso para el estudiante: cuantas observaciones nuevas dejo su asesor.
+  useEffect(() => {
+    if (usuario?.rol !== 'estudiante') return;
+    let activo = true;
+    const contar = () =>
+      cargarObservaciones()
+        .then((obs) => {
+          const vista = ultimaVista(usuario.correo);
+          if (activo) setNuevas(obs.filter((o) => o.id_recomendacion > vista).length);
+        })
+        .catch(() => undefined);
+    contar();
+    const alVer = () => setNuevas(0);
+    window.addEventListener('revisiones-vistas', alVer);
+    const intervalo = window.setInterval(contar, 60000);
+    return () => {
+      activo = false;
+      window.removeEventListener('revisiones-vistas', alVer);
+      window.clearInterval(intervalo);
+    };
+  }, [usuario?.rol, usuario?.correo]);
   // Sin sesión (por ejemplo, justo después de cerrarla) se regresa al inicio de sesión.
   if (!usuario) return <Navigate to="/login" replace />;
 
@@ -76,7 +103,12 @@ export function AppShell() {
               }
             >
               <item.icon size={17} />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.to === '/estudiante/revisiones' && nuevas > 0 && (
+                <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${nuevas} nuevas`}>
+                  {nuevas}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
