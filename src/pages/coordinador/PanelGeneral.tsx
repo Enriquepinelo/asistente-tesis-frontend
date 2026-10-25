@@ -271,6 +271,9 @@ export default function PanelGeneral() {
             <p className="font-serif text-2xl tabular-nums">
               {resumen.ia.tiempo_promedio_ms == null ? '—' : `${(resumen.ia.tiempo_promedio_ms / 1000).toFixed(1)} s`}
             </p>
+            {resumen.ia.tiempo_promedio_ms == null && (
+              <p className="text-[12px] text-slate-soft">Se mide desde las próximas generaciones.</p>
+            )}
           </div>
         </div>
         <h3 className="text-[14px] font-semibold mb-2">Últimos errores</h3>
