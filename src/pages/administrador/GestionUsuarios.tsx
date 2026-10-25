@@ -104,6 +104,13 @@ export default function GestionUsuarios() {
 
       {aviso && <p className="mb-4 text-[14px] text-ok">{aviso}</p>}
 
+      {!cargando && usuarios.some((u) => u.estado === 'inactivo') && (
+        <div className="folio px-5 py-4 mb-6 border-gold/40 bg-gold/5 text-[14.5px]">
+          Hay {usuarios.filter((u) => u.estado === 'inactivo').length} cuenta(s) esperando aprobación. Revisa los datos y
+          presiona <strong>Activar</strong> para darles acceso.
+        </div>
+      )}
+
       {mostrarFormulario && (
         <form onSubmit={crearUsuario} className="folio p-6 mb-6 grid grid-cols-2 gap-5">
           <div>
@@ -199,7 +206,7 @@ export default function GestionUsuarios() {
                   <td className="px-6 py-3.5 capitalize">{u.rol}</td>
                   <td className="px-6 py-3.5">
                     <span className={u.estado === 'inactivo' ? 'text-danger' : 'text-ok'}>
-                      {u.estado === 'inactivo' ? 'Inactivo' : 'Activo'}
+                      {u.estado === 'inactivo' ? 'Pendiente o inactivo' : 'Activo'}
                     </span>
                   </td>
                   <td className="px-6 py-3.5 text-right">

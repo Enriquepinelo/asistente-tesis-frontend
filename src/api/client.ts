@@ -45,6 +45,7 @@ api.interceptors.response.use(
 
 export const endpoints = {
   login: '/auth/login',
+  registro: '/auth/registro',
   formularios: '/formularios',
   formularioPorId: (id: number | string) => `/formularios/${id}`,
   generarPropuesta: (id: number | string) => `/formularios/${id}/generar-propuesta`,

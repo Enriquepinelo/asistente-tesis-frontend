@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
+import Registro from '../pages/Registro';
 import { AppShell } from '../components/layout/AppShell';
 import { RutaProtegida } from './RutaProtegida';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +30,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/registro" element={<Registro />} />
       <Route path="/" element={<Raiz />} />
 
       <Route element={<AppShell />}>

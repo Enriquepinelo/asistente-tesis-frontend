@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { GraduationCap, FileText, Sparkles, ClipboardCheck, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -105,7 +105,7 @@ export default function Login() {
 
           <h2 className="text-2xl mb-1">Inicia sesión</h2>
           <p className="text-slate-soft text-[14.5px] mb-8">
-            Usa tu correo institucional y contraseña asignada.
+            Usa tu correo institucional y tu contraseña.
           </p>
 
           <form onSubmit={manejarEnvio} className="space-y-5">
@@ -148,6 +148,10 @@ export default function Login() {
               {cargando ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>
+          <p className="mt-8 text-[14px] text-slate-soft">
+            ¿Eres estudiante y no tienes cuenta?{' '}
+            <Link to="/registro" className="text-ink font-medium underline">Crea tu cuenta</Link>
+          </p>
         </div>
       </div>
     </div>
