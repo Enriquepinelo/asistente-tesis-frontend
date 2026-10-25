@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import {
   FileText,
   LayoutGrid,
@@ -44,7 +44,8 @@ const rolEtiqueta: Record<Rol, string> = {
 
 export function AppShell() {
   const { usuario, cerrarSesion } = useAuth();
-  if (!usuario) return null;
+  // Sin sesión (por ejemplo, justo después de cerrarla) se regresa al inicio de sesión.
+  if (!usuario) return <Navigate to="/login" replace />;
 
   const items = navPorRol[usuario.rol];
 
