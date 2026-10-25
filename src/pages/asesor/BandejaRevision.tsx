@@ -23,6 +23,12 @@ const filtros: { valor: Estado | 'todas'; texto: string }[] = [
   { valor: 'aprobada', texto: 'Aprobadas' },
 ];
 
+// La base de datos guarda la hora en UTC sin zona: se muestra en hora local.
+function fechaLocal(f: string) {
+  const d = new Date(f.includes('T') ? f : f.replace(' ', 'T') + 'Z');
+  return Number.isNaN(d.getTime()) ? f : d.toLocaleString('es-GT', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 function lista(texto: string[] | string) {
   if (Array.isArray(texto)) return texto;
   try {
@@ -236,7 +242,7 @@ export default function BandejaRevision() {
                     <ul className="space-y-2">
                       {p.observaciones.map((o) => (
                         <li key={o.id_recomendacion} className="bg-paper-200 rounded-sm px-4 py-2.5 text-[14px]">
-                          <span className="text-slate-soft text-[12.5px] mr-2">{o.fecha_creacion}</span>
+                          <span className="text-slate-soft text-[12.5px] mr-2">{fechaLocal(o.fecha_creacion)}</span>
                           {o.contenido}
                         </li>
                       ))}

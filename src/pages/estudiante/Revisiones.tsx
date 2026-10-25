@@ -5,8 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 import { cargarObservaciones, marcarVistas, ultimaVista, type Observacion } from '../../api/revisiones';
 import type { PropuestaGenerada } from '../../types';
 
+// La base de datos guarda la hora en UTC sin zona: se agrega "Z" para mostrarla en hora local.
 function fecha(iso: string) {
-  const d = new Date(iso.replace(' ', 'T'));
+  const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('es-GT', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
