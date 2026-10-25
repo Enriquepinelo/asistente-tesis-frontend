@@ -90,22 +90,32 @@ function Barras({ datos, color }: { datos: { etiqueta: string; total: number; co
   );
 }
 
-function descargarCSV(filas: EstudianteFila[]) {
-  const enc = ['Nombre', 'Carnet', 'Correo', 'Carrera', 'Sede', 'Cuenta', 'Formularios', 'Propuestas', 'Por revisar', 'Con ajustes', 'Aprobadas', 'Última actividad'];
-  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lineas = filas.map((e) =>
-    [e.nombre_completo, e.carnet, e.correo, e.carrera, e.sede, e.estado_cuenta ?? 'sin cuenta', e.formularios, e.propuestas, e.por_revisar, e.ajustadas, e.aprobadas, fecha(e.ultima_actividad)]
-      .map(esc)
-      .join(','),
-  );
-  // El BOM al inicio hace que Excel lea bien las tildes.
-  const blob = new Blob(['﻿' + [enc.map(esc).join(','), ...lineas].join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `reporte_estudiantes_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+// Genera un archivo .xlsx real (columnas separadas, encabezados en negrita).
+// La librería se carga solo al presionar el botón, para no hacer más pesada la página.
+async function descargarExcel(filas: EstudianteFila[]) {
+  const { default: writeXlsxFile } = await import('write-excel-file');
+  const encabezados = ['Nombre', 'Carnet', 'Correo', 'Carrera', 'Sede', 'Cuenta', 'Formularios', 'Propuestas', 'Por revisar', 'Con ajustes', 'Aprobadas', 'Última actividad'];
+  const datos: any[][] = [
+    encabezados.map((h) => ({ value: h, fontWeight: 'bold', backgroundColor: '#E9EDF4' })),
+    ...filas.map((e) => [
+      { value: e.nombre_completo },
+      { value: e.carnet },
+      { value: e.correo },
+      { value: e.carrera },
+      { value: e.sede ?? '' },
+      { value: e.estado_cuenta === 'inactivo' ? 'Pendiente' : e.estado_cuenta ? 'Activa' : 'Sin cuenta' },
+      { value: e.formularios, type: Number },
+      { value: e.propuestas, type: Number },
+      { value: e.por_revisar, type: Number },
+      { value: e.ajustadas, type: Number },
+      { value: e.aprobadas, type: Number },
+      { value: fecha(e.ultima_actividad) },
+    ]),
+  ];
+  await writeXlsxFile(datos, {
+    columns: [28, 14, 30, 26, 18, 12, 12, 12, 12, 12, 12, 18].map((width) => ({ width })),
+    fileName: `reporte_estudiantes_${new Date().toISOString().slice(0, 10)}.xlsx`,
+  });
 }
 
 export default function PanelGeneral() {
@@ -184,7 +194,7 @@ export default function PanelGeneral() {
           <h1 className="text-3xl">Panel general</h1>
           <p className="text-slate-soft text-[15px] mt-1">Seguimiento del avance de los estudiantes y del funcionamiento del asistente.</p>
         </div>
-        <button className="btn-ghost inline-flex items-center gap-2" onClick={() => descargarCSV(estudiantes)}>
+        <button className="btn-ghost inline-flex items-center gap-2" onClick={() => descargarExcel(estudiantes).catch(() => setAviso('No se pudo generar el archivo de Excel.'))}>
           <Download size={16} /> Descargar reporte (Excel)
         </button>
       </div>
