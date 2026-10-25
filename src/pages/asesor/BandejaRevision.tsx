@@ -72,8 +72,13 @@ export default function BandejaRevision() {
   async function confirmarAccion() {
     if (!accion) return;
     const { id, estado } = accion;
+    const actual = propuestas.find((p) => p.id_propuesta === id)?.estado;
     if (estado === 'ajustada' && !comentario.trim()) {
       setError('Escribe qué debe ajustar el estudiante.');
+      return;
+    }
+    if (estado === actual && !comentario.trim()) {
+      setError('Escribe la observación para el estudiante.');
       return;
     }
     setGuardando(id);
@@ -173,12 +178,19 @@ export default function BandejaRevision() {
                   >
                     {expandida ? 'Ocultar detalle' : 'Ver propuesta completa'}
                   </button>
+                  <button
+                    className="btn-gold !px-3.5 !py-1.5 text-[13px]"
+                    disabled={guardando === p.id_propuesta}
+                    onClick={() => abrirAccion(p.id_propuesta, p.estado)}
+                  >
+                    Escribir observación
+                  </button>
                   {acciones.map((a) => (
                     <button
                       key={a.estado}
-                      disabled={guardando === p.id_propuesta || a.estado === p.estado}
+                      disabled={guardando === p.id_propuesta}
                       onClick={() => abrirAccion(p.id_propuesta, a.estado)}
-                      className={`btn-ghost !px-3.5 !py-1.5 text-[13px] ${a.estado === p.estado ? 'opacity-40' : ''}`}
+                      className={`btn-ghost !px-3.5 !py-1.5 text-[13px] ${a.estado === p.estado ? '!border-gold' : ''}`}
                     >
                       {a.texto}
                     </button>
@@ -190,7 +202,9 @@ export default function BandejaRevision() {
                     <label className="label-field" htmlFor={`obs-${p.id_propuesta}`}>
                       {accion.estado === 'ajustada'
                         ? 'Qué debe ajustar el estudiante (obligatorio)'
-                        : 'Comentario para el estudiante (opcional)'}
+                        : accion.estado === p.estado
+                          ? 'Observación para el estudiante (el estado no cambia)'
+                          : 'Comentario para el estudiante (opcional)'}
                     </label>
                     <textarea
                       id={`obs-${p.id_propuesta}`}
