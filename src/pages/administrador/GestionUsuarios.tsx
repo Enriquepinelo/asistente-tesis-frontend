@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, endpoints } from '../../api/client';
 import type { Rol, Usuario } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 
 const rolesDisponibles: Rol[] = ['estudiante', 'asesor', 'coordinador', 'administrador'];
 
@@ -16,6 +17,7 @@ const vacio = {
 };
 
 export default function GestionUsuarios() {
+  const { usuario: yo } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
@@ -201,9 +203,13 @@ export default function GestionUsuarios() {
                     </span>
                   </td>
                   <td className="px-6 py-3.5 text-right">
-                    <button className="text-[13px] underline text-slate-soft hover:text-ink" onClick={() => alternarEstado(u)}>
-                      {u.estado === 'inactivo' ? 'Activar' : 'Desactivar'}
-                    </button>
+                    {u.id_usuario === yo?.id_usuario ? (
+                      <span className="text-[13px] text-slate-soft">Tu cuenta</span>
+                    ) : (
+                      <button className="text-[13px] underline text-slate-soft hover:text-ink" onClick={() => alternarEstado(u)}>
+                        {u.estado === 'inactivo' ? 'Activar' : 'Desactivar'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
