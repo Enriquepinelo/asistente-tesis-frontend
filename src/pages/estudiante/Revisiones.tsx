@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { cargarObservaciones, marcarVistas, ultimaVista, type Observacion } from '../../api/revisiones';
 import type { PropuestaGenerada } from '../../types';
 import { FileText } from 'lucide-react';
-import { descargarDocumento, listarDocumentos, tamano, type DocumentoRevision } from '../../api/documentos';
+import { descargarDocumento, misDocumentos, tamano, type DocumentoRevision } from '../../api/documentos';
 
 // La base de datos guarda la hora en UTC sin zona: se agrega "Z" para mostrarla en hora local.
 function fecha(iso: string) {
@@ -34,14 +34,14 @@ export default function Revisiones() {
         const lista: PropuestaGenerada[] = data.propuestas ?? data;
         setPropuestas(lista);
         setObs(o);
-        // Documentos que subió el asesor (si la función ya está activada).
-        lista
-          .filter((p) => p.estado !== 'generada')
-          .forEach((p) =>
-            listarDocumentos(p.id_propuesta)
-              .then((d) => setDocs((x) => ({ ...x, [p.id_propuesta]: d })))
-              .catch(() => undefined),
-          );
+        // Documentos que subió el asesor, en cualquier propuesta y con cualquier estado.
+        misDocumentos()
+          .then((todos) => {
+            const porPropuesta: Record<number, DocumentoRevision[]> = {};
+            for (const d of todos) (porPropuesta[d.id_propuesta] ??= []).push(d);
+            setDocs(porPropuesta);
+          })
+          .catch(() => undefined);
         marcarVistas(usuario?.correo, o);
       })
       .catch((err) => setError(err?.response?.data?.mensaje || 'No se pudieron cargar tus revisiones.'))
@@ -49,7 +49,10 @@ export default function Revisiones() {
   }, [usuario?.correo]);
 
   const revisadas = propuestas.filter(
-    (p) => p.estado !== 'generada' || obs.some((o) => o.id_formulario === p.id_formulario)
+    (p) =>
+      p.estado !== 'generada' ||
+      obs.some((o) => o.id_formulario === p.id_formulario) ||
+      (docs[p.id_propuesta]?.length ?? 0) > 0
   );
 
   return (

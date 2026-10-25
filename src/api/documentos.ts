@@ -15,6 +15,12 @@ export async function listarDocumentos(idPropuesta: number): Promise<DocumentoRe
   return data.documentos ?? [];
 }
 
+// Todos los documentos que el asesor subió a las propuestas del estudiante.
+export async function misDocumentos(): Promise<DocumentoRevision[]> {
+  const { data } = await api.get('/propuestas/mis-documentos');
+  return data.documentos ?? [];
+}
+
 // Lee el archivo elegido y lo envía en base64 (máximo 5 MB, PDF o Word).
 export async function subirDocumento(idPropuesta: number, archivo: File) {
   if (archivo.size > 5 * 1024 * 1024) throw new Error('El archivo no puede pasar de 5 MB.');
