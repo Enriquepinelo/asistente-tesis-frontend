@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, endpoints } from '../../api/client';
 import { EstadoPill } from '../../components/EstadoPill';
 import { useAuth } from '../../context/AuthContext';
-import { listarPropuestas, abrirPropuesta, type PropuestaGuardada } from '../../api/propuestaFlujo';
+import { listarPropuestas, abrirPropuesta, cargarPropuestasBD, combinar, type PropuestaGuardada } from '../../api/propuestaFlujo';
 import type { HistorialFlujo } from '../../types';
 
 function formatearFecha(iso: string) {
@@ -20,7 +20,12 @@ export default function HistorialEstudiante() {
   const [propuestas, setPropuestas] = useState<PropuestaGuardada[]>([]);
 
   useEffect(() => {
-    setPropuestas(listarPropuestas(usuario?.correo));
+    const locales = listarPropuestas(usuario?.correo);
+    setPropuestas(locales);
+    // Se completan con las de la base de datos para verlas desde cualquier equipo.
+    cargarPropuestasBD()
+      .then((bd) => setPropuestas(combinar(bd, locales)))
+      .catch(() => undefined);
   }, [usuario?.correo]);
 
   useEffect(() => {

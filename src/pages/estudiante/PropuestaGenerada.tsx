@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EstadoPill } from '../../components/EstadoPill';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,7 @@ import {
   guardarPropuesta,
   generarDesarrollo,
   mensajeError,
+  cargarPropuestasBD,
   type PropuestaGuardada,
 } from '../../api/propuestaFlujo';
 
@@ -18,6 +19,32 @@ export default function PropuestaGenerada() {
   const [seleccion, setSeleccion] = useState<number | null>(null);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [buscando, setBuscando] = useState(true);
+
+  // Lee la propuesta desde la base de datos para que se vea en cualquier equipo.
+  // Si este navegador ya tiene una, se respeta (puede tener el tema recién elegido)
+  // y solo se toma de la base de datos el estado que puso el asesor.
+  useEffect(() => {
+    let activo = true;
+    cargarPropuestasBD()
+      .then((lista) => {
+        if (!activo) return;
+        setPropuesta((actual) => {
+          if (!actual) {
+            const ultima = lista.find((p) => p.etapa === 'completa') ?? lista[0] ?? null;
+            if (ultima) guardarPropuesta(usuario?.correo, ultima);
+            return ultima;
+          }
+          const remota = lista.find((p) => p.id_formulario === actual.id_formulario);
+          return remota ? { ...actual, estado_revision: remota.estado_revision } : actual;
+        });
+      })
+      .catch(() => undefined)
+      .finally(() => activo && setBuscando(false));
+    return () => {
+      activo = false;
+    };
+  }, [usuario?.correo]);
 
   async function elegirTema() {
     if (!propuesta || seleccion === null) return;
@@ -60,6 +87,9 @@ export default function PropuestaGenerada() {
   }
 
   /* ---------------- Sin propuesta ---------------- */
+  if (!propuesta && buscando) {
+    return <p className="text-slate-soft">Buscando tu propuesta…</p>;
+  }
   if (!propuesta) {
     return (
       <div className="folio p-8 max-w-xl">
@@ -142,7 +172,7 @@ export default function PropuestaGenerada() {
           <p className="text-[13px] tracking-wide text-gold-dark mb-2">Paso 2 de 2</p>
           <h1 className="text-3xl">Anteproyecto de tesis</h1>
         </div>
-        <EstadoPill estado={'Generada' as any} />
+        <EstadoPill estado={propuesta.estado_revision ?? 'generada'} />
       </div>
 
       <section className="folio mb-6">

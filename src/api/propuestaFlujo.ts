@@ -21,6 +21,8 @@ export interface PropuestaGuardada {
   desarrollo: Desarrollo | null;
   id_formulario: number | null;
   actualizado: string;
+  // Estado de revisión que puso el asesor (solo viene de la base de datos).
+  estado_revision?: string;
 }
 
 /* ------------------------------------------------------------------ *
@@ -282,4 +284,67 @@ export async function generarDesarrollo(
   guardarPropuesta(usuario?.correo, propuesta);
   registrarEnLista(usuario?.correo, propuesta);
   return propuesta;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Propuestas guardadas en la base de datos (se ven desde cualquier equipo)
+ * ------------------------------------------------------------------ */
+
+const PREFIJO_DESARROLLO = 'Desarrollar el anteproyecto del tema:';
+
+function fechaBD(f?: string): string {
+  if (!f) return new Date(0).toISOString();
+  const d = new Date(f.includes('T') ? f : f.replace(' ', 'T') + 'Z');
+  return Number.isNaN(d.getTime()) ? f : d.toISOString();
+}
+
+// Convierte una fila de propuestas_generadas al formato que usan las pantallas.
+// Si el formulario pedía desarrollar un tema concreto, es un anteproyecto completo;
+// si no, fue la etapa de sugerir temas.
+export function desdeBaseDeDatos(fila: any): PropuestaGuardada {
+  const objetivo: string = fila?.objetivo_proyecto ?? '';
+  const temas = extraerTemas(fila);
+  const desarrollo = extraerDesarrollo(fila);
+  const esCompleta = objetivo.startsWith(PREFIJO_DESARROLLO) || (!objetivo && !!desarrollo);
+  const tema = esCompleta
+    ? objetivo.startsWith(PREFIJO_DESARROLLO)
+      ? objetivo.slice(PREFIJO_DESARROLLO.length).trim()
+      : temas[0] ?? null
+    : null;
+  return {
+    etapa: esCompleta && desarrollo ? 'completa' : 'temas',
+    area_interes: fila?.area_interes ?? '',
+    temas,
+    tema_elegido: esCompleta ? tema : null,
+    desarrollo: esCompleta ? desarrollo : null,
+    id_formulario: fila?.id_formulario != null ? Number(fila.id_formulario) : null,
+    actualizado: fechaBD(fila?.fecha_generacion),
+    estado_revision: fila?.estado,
+  };
+}
+
+export async function cargarPropuestasBD(): Promise<PropuestaGuardada[]> {
+  const { data } = await api.get(endpoints.propuestas);
+  const filas: any[] = data?.propuestas ?? data ?? [];
+  return filas.map(desdeBaseDeDatos);
+}
+
+// Une lo que hay en la base de datos con lo guardado en este navegador.
+// Si una propuesta está en los dos lados, gana la del navegador (puede tener el
+// tema que el estudiante acaba de elegir) pero conserva el estado del asesor.
+export function combinar(bd: PropuestaGuardada[], locales: PropuestaGuardada[]): PropuestaGuardada[] {
+  const porId = new Map<number, PropuestaGuardada>();
+  const sinId: PropuestaGuardada[] = [];
+  for (const p of bd) {
+    if (p.id_formulario != null) porId.set(p.id_formulario, p);
+  }
+  for (const p of locales) {
+    if (p.id_formulario == null) {
+      sinId.push(p);
+      continue;
+    }
+    const remota = porId.get(p.id_formulario);
+    porId.set(p.id_formulario, { ...p, estado_revision: remota?.estado_revision ?? p.estado_revision });
+  }
+  return [...porId.values(), ...sinId].sort((a, b) => (b.actualizado ?? '').localeCompare(a.actualizado ?? ''));
 }
