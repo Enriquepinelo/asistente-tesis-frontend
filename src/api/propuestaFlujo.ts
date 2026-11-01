@@ -102,8 +102,36 @@ export function listarPropuestas(correo?: string | null): PropuestaGuardada[] {
 }
 
 // Deja una propuesta antigua como la "actual" para verla en "Mi propuesta".
+// Se marca solo para la próxima vez que se abra "Mi propuesta"; después vuelve
+// a mostrarse siempre la más reciente.
+const CLAVE_APERTURA = 'abrir_propuesta_especifica';
+
 export function abrirPropuesta(correo: string | null | undefined, propuesta: PropuestaGuardada) {
   guardarPropuesta(correo, propuesta);
+  try {
+    sessionStorage.setItem(CLAVE_APERTURA, String(propuesta.id_formulario ?? ''));
+  } catch {
+    /* sin almacenamiento de sesión */
+  }
+}
+
+// Devuelve (y borra) la propuesta que se pidió abrir desde Revisiones o Historial.
+export function consumirApertura(): number | null {
+  try {
+    const v = sessionStorage.getItem(CLAVE_APERTURA);
+    sessionStorage.removeItem(CLAVE_APERTURA);
+    return v ? Number(v) || null : null;
+  } catch {
+    return null;
+  }
+}
+
+// Las propuestas más nuevas tienen un número de formulario mayor.
+export function masReciente(lista: PropuestaGuardada[]): PropuestaGuardada | null {
+  return lista.reduce<PropuestaGuardada | null>(
+    (a, p) => (!a || (p.id_formulario ?? 0) > (a.id_formulario ?? 0) ? p : a),
+    null
+  );
 }
 
 /* ------------------------------------------------------------------ *

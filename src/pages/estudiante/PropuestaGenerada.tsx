@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EstadoPill } from '../../components/EstadoPill';
 import { EstadoGeneracion } from '../../components/EstadoGeneracion';
@@ -10,6 +11,8 @@ import {
   generarDesarrollo,
   mensajeError,
   cargarPropuestasBD,
+  consumirApertura,
+  masReciente,
   type PropuestaGuardada,
 } from '../../api/propuestaFlujo';
 
@@ -22,24 +25,33 @@ export default function PropuestaGenerada() {
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(true);
+  // Si se llegó desde Revisiones o Historial con "Ver propuesta", se muestra esa;
+  // si no, siempre la más reciente que haya generado el estudiante.
+  const [especifica] = useState(() => consumirApertura());
   const [recienGenerada, setRecienGenerada] = useState(false);
 
-  // Lee la propuesta desde la base de datos para que se vea en cualquier equipo.
-  // Si este navegador ya tiene una, se respeta (puede tener el tema recién elegido)
-  // y solo se toma de la base de datos el estado que puso el asesor.
+  // Lee las propuestas de la base de datos (se ven desde cualquier equipo) y
+  // decide cuál mostrar: la pedida desde Revisiones/Historial o la más reciente.
+  // De la base de datos se toma siempre el estado del asesor y si ya fue enviada.
   useEffect(() => {
     let activo = true;
     cargarPropuestasBD()
       .then((lista) => {
         if (!activo) return;
         setPropuesta((actual) => {
-          if (!actual) {
-            const ultima = lista.find((p) => p.etapa === 'completa') ?? lista[0] ?? null;
-            if (ultima) guardarPropuesta(usuario?.correo, ultima);
-            return ultima;
+          const ultima = masReciente(lista);
+          let base: PropuestaGuardada | null = actual;
+          const pidioEsta = especifica !== null && actual?.id_formulario === especifica;
+          if (!pidioEsta && ultima && (!actual || (ultima.id_formulario ?? 0) > (actual.id_formulario ?? 0))) {
+            base = ultima;
           }
-          const remota = lista.find((p) => p.id_formulario === actual.id_formulario);
-          return remota ? { ...actual, estado_revision: remota.estado_revision, enviada: remota.enviada ?? null } : actual;
+          if (!base) return null;
+          const remota = lista.find((p) => p.id_formulario === base!.id_formulario);
+          const resultado = remota
+            ? { ...base, estado_revision: remota.estado_revision, enviada: remota.enviada ?? null }
+            : base;
+          guardarPropuesta(usuario?.correo, resultado);
+          return resultado;
         });
       })
       .catch(() => undefined)
@@ -47,7 +59,7 @@ export default function PropuestaGenerada() {
     return () => {
       activo = false;
     };
-  }, [usuario?.correo]);
+  }, [usuario?.correo, especifica]);
 
   async function elegirTema() {
     if (!propuesta || seleccion === null) return;
@@ -92,8 +104,14 @@ export default function PropuestaGenerada() {
   }
 
   /* ---------------- Sin propuesta ---------------- */
-  if (!propuesta && buscando) {
-    return <p className="text-slate-soft">Buscando tu propuesta…</p>;
+  // Mientras se consulta la base de datos no se muestra lo guardado en el navegador,
+  // para no enseñar por un momento una propuesta vieja.
+  if (buscando && (!propuesta || especifica === null)) {
+    return (
+      <p className="flex items-center gap-2 text-slate-soft">
+        <Loader2 size={16} className="animate-spin" /> Buscando tu propuesta más reciente…
+      </p>
+    );
   }
   if (!propuesta) {
     return (

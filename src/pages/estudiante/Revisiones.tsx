@@ -63,8 +63,9 @@ export default function Revisiones() {
       .then(([{ data }, o]) => {
         const todas: PropuestaGenerada[] = data.propuestas ?? data;
         // Aquí solo aparece lo que el estudiante envió a su asesor; lo demás son borradores.
-        const lista = todas.filter((p) => p.fecha_envio);
-        setSinEnviar(todas.length - lista.length);
+        const anteproyectos = todas.filter((p) => desdeBaseDeDatos(p).etapa === 'completa');
+        const lista = anteproyectos.filter((p) => p.fecha_envio);
+        setSinEnviar(anteproyectos.length - lista.length);
         setPropuestas(lista);
         setObs(o);
         // Si hay propuestas con ajustes, se abre esa pestaña primero porque es lo que necesita atención.
