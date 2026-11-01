@@ -8,6 +8,7 @@ export interface DocumentoRevision {
   tamano_bytes: number;
   fecha_subida: string;
   subido_por: string | null;
+  rol_subio?: string | null;
 }
 
 export async function listarDocumentos(idPropuesta: number): Promise<DocumentoRevision[]> {

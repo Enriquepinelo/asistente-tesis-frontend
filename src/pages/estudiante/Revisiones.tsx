@@ -8,6 +8,7 @@ import { cargarObservaciones, marcarVistas, ultimaVista, type Observacion } from
 import { abrirPropuesta, desdeBaseDeDatos } from '../../api/propuestaFlujo';
 import type { PropuestaGenerada } from '../../types';
 import { descargarDocumento, misDocumentos, tamano, type DocumentoRevision } from '../../api/documentos';
+import { SubirDocumento } from '../../components/SubirDocumento';
 
 type Estado = PropuestaGenerada['estado'];
 type Pestana = Estado | 'todas';
@@ -55,18 +56,22 @@ export default function Revisiones() {
         setObs(o);
         // Si hay propuestas con ajustes, se abre esa pestaña primero porque es lo que necesita atención.
         setPestana((p) => p ?? (lista.some((x) => x.estado === 'ajustada') ? 'ajustada' : 'todas'));
-        misDocumentos()
-          .then((todos) => {
-            const porPropuesta: Record<number, DocumentoRevision[]> = {};
-            for (const d of todos) (porPropuesta[d.id_propuesta] ??= []).push(d);
-            setDocs(porPropuesta);
-          })
-          .catch(() => undefined);
+        recargarDocs();
         marcarVistas(usuario?.correo, o);
       })
       .catch((err) => setError(err?.response?.data?.mensaje || 'No se pudieron cargar tus revisiones.'))
       .finally(() => setCargando(false));
   }, [usuario?.correo]);
+
+  function recargarDocs() {
+    misDocumentos()
+      .then((todos) => {
+        const porPropuesta: Record<number, DocumentoRevision[]> = {};
+        for (const d of todos) (porPropuesta[d.id_propuesta] ??= []).push(d);
+        setDocs(porPropuesta);
+      })
+      .catch(() => undefined);
+  }
 
   const obsDe = (p: PropuestaGenerada) => obs.filter((o) => o.id_formulario === p.id_formulario);
   const conteo = (v: Pestana) => (v === 'todas' ? propuestas.length : propuestas.filter((p) => p.estado === v).length);
@@ -173,11 +178,12 @@ export default function Revisiones() {
                       <div className="px-5 pb-5 pl-12 space-y-4">
                         <p className="text-[13.5px] text-slate-soft">{explicacion[p.estado]}</p>
 
-                        {susDocs.length > 0 && (
-                          <div>
-                            <p className="text-[13px] font-semibold mb-1.5">Documentos de tu asesor</p>
+                        {(() => {
+                          const delAsesor = susDocs.filter((d) => d.rol_subio !== 'estudiante');
+                          const mios = susDocs.filter((d) => d.rol_subio === 'estudiante');
+                          const lista = (l: DocumentoRevision[]) => (
                             <ul className="space-y-1.5">
-                              {susDocs.map((d) => (
+                              {l.map((d) => (
                                 <li key={d.id_documento} className="flex flex-wrap items-center gap-2 text-[14px]">
                                   <FileText size={15} className="text-slate-soft" />
                                   <button className="underline" onClick={() => descargarDocumento(d).catch(() => undefined)}>{d.nombre_archivo}</button>
@@ -185,8 +191,30 @@ export default function Revisiones() {
                                 </li>
                               ))}
                             </ul>
-                          </div>
-                        )}
+                          );
+                          return (
+                            <>
+                              {delAsesor.length > 0 && (
+                                <div>
+                                  <p className="text-[13px] font-semibold mb-1.5">Documentos de tu asesor</p>
+                                  {lista(delAsesor)}
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-[13px] font-semibold mb-1.5">Mis archivos para el asesor</p>
+                                {mios.length > 0 ? <div className="mb-2.5">{lista(mios)}</div> : (
+                                  <p className="text-[13.5px] text-slate-soft mb-2.5">Aquí puedes subir tu avance corregido o cualquier documento que te pida tu asesor.</p>
+                                )}
+                                <SubirDocumento
+                                  idPropuesta={p.id_propuesta}
+                                  texto="Subir archivo para mi asesor"
+                                  mensajeListo="Tu asesor ya puede verlo."
+                                  onSubido={recargarDocs}
+                                />
+                              </div>
+                            </>
+                          );
+                        })()}
 
                         <div>
                           <p className="text-[13px] font-semibold mb-1.5">Observaciones</p>

@@ -356,7 +356,7 @@ export default function BandejaRevision() {
                             <p>{p.justificacion}</p>
                           </section>
                           <section>
-                            <h4 className="font-semibold mb-2">Documentos de revisión</h4>
+                            <h4 className="font-semibold mb-2">Documentos (del asesor y del estudiante)</h4>
                             {misDocs === undefined && <p className="text-slate-soft text-[13.5px]">Cargando…</p>}
                             {typeof misDocs === 'string' && <p className="text-warn text-[13.5px]">{misDocs}</p>}
                             {Array.isArray(misDocs) && misDocs.length === 0 && <p className="text-slate-soft text-[13.5px]">Todavía no hay documentos.</p>}
@@ -368,6 +368,7 @@ export default function BandejaRevision() {
                                     <button className="underline" onClick={() => descargarDocumento(d).catch(() => setError('No se pudo descargar el documento.'))}>
                                       {d.nombre_archivo}
                                     </button>
+                                    {d.rol_subio === 'estudiante' && <span className="pill bg-gold/15 text-gold-dark">Del estudiante</span>}
                                     <span className="text-[12.5px] text-slate-soft">{tamano(d.tamano_bytes)}, {fechaLocal(d.fecha_subida)}</span>
                                   </li>
                                 ))}
