@@ -38,6 +38,10 @@ export interface PropuestaGenerada {
   nombre_estudiante?: string;
   carnet?: string;
   area_interes?: string;
+  // Envío a revisión: solo existe si el estudiante la mandó a su asesor.
+  fecha_envio?: string | null;
+  mensaje_estudiante?: string | null;
+  veces_enviada?: number;
 }
 
 export interface HistorialFlujo {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EstadoPill } from '../../components/EstadoPill';
 import { EstadoGeneracion } from '../../components/EstadoGeneracion';
+import { EnviarRevision } from '../../components/EnviarRevision';
 import { useAuth } from '../../context/AuthContext';
 import {
   leerPropuesta,
@@ -38,7 +39,7 @@ export default function PropuestaGenerada() {
             return ultima;
           }
           const remota = lista.find((p) => p.id_formulario === actual.id_formulario);
-          return remota ? { ...actual, estado_revision: remota.estado_revision } : actual;
+          return remota ? { ...actual, estado_revision: remota.estado_revision, enviada: remota.enviada ?? null } : actual;
         });
       })
       .catch(() => undefined)
@@ -118,6 +119,7 @@ export default function PropuestaGenerada() {
           Estos son los temas que el sistema propone para el área de{' '}
           <strong>{propuesta.area_interes}</strong>. Elige el que más te convenza y con él se
           generará el planteamiento del problema, los objetivos y la justificación.
+          Nada se envía a tu asesor hasta que tú lo decidas.
         </p>
 
         <div className="space-y-3 mb-6">
@@ -182,7 +184,7 @@ export default function PropuestaGenerada() {
           <p className="text-[13px] tracking-wide text-gold-dark mb-2">Paso 2 de 2</p>
           <h1 className="text-3xl">Anteproyecto de tesis</h1>
         </div>
-        <EstadoPill estado={propuesta.estado_revision ?? 'generada'} />
+        <EstadoPill estado={propuesta.enviada ? propuesta.estado_revision ?? 'generada' : 'sin_enviar'} />
       </div>
 
       {recienGenerada && (
@@ -237,8 +239,19 @@ export default function PropuestaGenerada() {
         </>
       )}
 
+      <EnviarRevision
+        idFormulario={propuesta.id_formulario}
+        enviada={propuesta.enviada}
+        estado={propuesta.estado_revision}
+        onEnviada={(fecha) => {
+          const actualizada = { ...propuesta, enviada: fecha, estado_revision: 'generada' };
+          guardarPropuesta(usuario?.correo, actualizada);
+          setPropuesta(actualizada);
+        }}
+      />
+
       <div className="flex items-center gap-3 pt-2 border-t border-paper-300">
-        {propuesta.temas.length > 1 && (
+        {propuesta.temas.length > 1 && !propuesta.enviada && (
           <button type="button" className="btn-primary" onClick={cambiarDeTema}>
             Elegir otro tema
           </button>

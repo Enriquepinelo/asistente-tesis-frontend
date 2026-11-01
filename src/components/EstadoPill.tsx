@@ -5,6 +5,7 @@ const estilos: Record<string, string> = {
   ajustada: 'bg-gold/15 text-gold-dark',
   aprobada: 'bg-ok/10 text-ok',
   borrador: 'bg-paper-300 text-slate-soft',
+  sin_enviar: 'bg-paper-300 text-slate-soft',
   error: 'bg-danger/10 text-danger',
   exitoso: 'bg-ok/10 text-ok',
   fallido: 'bg-danger/10 text-danger',
@@ -15,11 +16,12 @@ const estilos: Record<string, string> = {
 
 const etiquetas: Record<string, string> = {
   procesado: 'Procesado',
-  generada: 'Generada',
+  generada: 'Por revisar',
   revisada: 'Revisada',
   ajustada: 'Ajustada',
   aprobada: 'Aprobada',
   borrador: 'Borrador',
+  sin_enviar: 'Sin enviar',
   error: 'Error',
   exitoso: 'Exitoso',
   fallido: 'Fallido',

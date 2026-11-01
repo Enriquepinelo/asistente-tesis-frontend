@@ -135,3 +135,47 @@ export function marcarDocsAsesorVistos(correo: string | undefined, lista: Docume
   }
   window.dispatchEvent(new Event('docs-asesor-vistos'));
 }
+
+/* ---------- Avisos para el asesor: propuestas enviadas a revisión ---------- */
+
+export interface EnvioReciente {
+  id_envio: number;
+  id_propuesta: number;
+  mensaje: string | null;
+  veces: number;
+  fecha_envio: string;
+  nombre_estudiante: string | null;
+  tema: string | null;
+  objetivo_proyecto: string | null;
+}
+
+export async function enviosRecientes(): Promise<EnvioReciente[]> {
+  const { data } = await api.get('/propuestas/envios-recientes');
+  return data.envios ?? [];
+}
+
+const claveEnvios = (correo?: string) => `envios_vistos_${correo ?? ''}`;
+
+export function ultimoEnvioVisto(correo?: string): number {
+  try {
+    return Number(localStorage.getItem(claveEnvios(correo)) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function marcarEnviosVistos(correo: string | undefined, lista: EnvioReciente[]) {
+  const max = lista.reduce((m, e) => Math.max(m, e.id_envio), 0);
+  try {
+    localStorage.setItem(claveEnvios(correo), String(Math.max(max, ultimoEnvioVisto(correo))));
+  } catch {
+    /* sin almacenamiento */
+  }
+  window.dispatchEvent(new Event('archivos-vistos'));
+}
+
+// El tema real del anteproyecto viene en el objetivo del formulario.
+export function temaDeEnvio(e: EnvioReciente) {
+  const pref = 'Desarrollar el anteproyecto del tema:';
+  return e.objetivo_proyecto?.startsWith(pref) ? e.objetivo_proyecto.slice(pref.length).trim() : e.tema ?? '';
+}

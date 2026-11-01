@@ -23,6 +23,8 @@ export interface PropuestaGuardada {
   actualizado: string;
   // Estado de revisión que puso el asesor (solo viene de la base de datos).
   estado_revision?: string;
+  // Fecha en que el estudiante la envió a su asesor (null = sigue como borrador).
+  enviada?: string | null;
 }
 
 /* ------------------------------------------------------------------ *
@@ -320,6 +322,7 @@ export function desdeBaseDeDatos(fila: any): PropuestaGuardada {
     id_formulario: fila?.id_formulario != null ? Number(fila.id_formulario) : null,
     actualizado: fechaBD(fila?.fecha_generacion),
     estado_revision: fila?.estado,
+    enviada: fila?.fecha_envio ?? null,
   };
 }
 
@@ -344,7 +347,23 @@ export function combinar(bd: PropuestaGuardada[], locales: PropuestaGuardada[]):
       continue;
     }
     const remota = porId.get(p.id_formulario);
-    porId.set(p.id_formulario, { ...p, estado_revision: remota?.estado_revision ?? p.estado_revision });
+    porId.set(p.id_formulario, {
+      ...p,
+      estado_revision: remota?.estado_revision ?? p.estado_revision,
+      enviada: remota ? remota.enviada ?? null : p.enviada,
+    });
   }
   return [...porId.values(), ...sinId].sort((a, b) => (b.actualizado ?? '').localeCompare(a.actualizado ?? ''));
+}
+
+/* ------------------------------------------------------------------ *
+ *  Envío a revisión: el estudiante decide qué le llega a su asesor
+ * ------------------------------------------------------------------ */
+
+export async function enviarARevision(idFormulario: number, mensaje?: string): Promise<string> {
+  const { data } = await api.post('/propuestas/enviar-revision', {
+    id_formulario: idFormulario,
+    mensaje: mensaje?.trim() || undefined,
+  });
+  return data?.mensaje ?? 'Propuesta enviada a tu asesor.';
 }

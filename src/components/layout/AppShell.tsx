@@ -16,11 +16,12 @@ import { useEffect, useState } from 'react';
 import { cargarObservaciones, ultimaVista } from '../../api/revisiones';
 import {
   archivosDeEstudiantes,
+  enviosRecientes,
+  ultimoEnvioVisto,
   esDelAsesor,
   misDocumentos,
   ultimoArchivoVisto,
   ultimoDocAsesorVisto,
-  type ArchivoEstudiante,
 } from '../../api/documentos';
 import { useAuth } from '../../context/AuthContext';
 import type { Rol } from '../../types';
@@ -60,7 +61,7 @@ export function AppShell() {
   const { usuario, cerrarSesion } = useAuth();
   const [nuevas, setNuevas] = useState(0);
   const [archivosNuevos, setArchivosNuevos] = useState(0);
-  const [alerta, setAlerta] = useState<ArchivoEstudiante | null>(null);
+  const [alerta, setAlerta] = useState<{ titulo: string; texto: string } | null>(null);
   const [docsNuevos, setDocsNuevos] = useState(0);
   const [alertaEst, setAlertaEst] = useState<string | null>(null);
 
@@ -102,18 +103,27 @@ export function AppShell() {
   useEffect(() => {
     if (usuario?.rol !== 'asesor') return;
     let activo = true;
-    let mayorConocido = -1;
+    let mayorArchivo = -1;
+    let mayorEnvio = -1;
     const revisar = () =>
-      archivosDeEstudiantes()
-        .then((lista) => {
-          if (!activo) return;
-          const vistos = ultimoArchivoVisto(usuario.correo);
-          setArchivosNuevos(lista.filter((d) => d.id_documento > vistos).length);
-          const mayor = lista[0]?.id_documento ?? 0;
-          if (mayorConocido >= 0 && mayor > mayorConocido && lista[0]) setAlerta(lista[0]);
-          mayorConocido = Math.max(mayorConocido, mayor);
-        })
-        .catch(() => undefined);
+      Promise.all([archivosDeEstudiantes().catch(() => []), enviosRecientes().catch(() => [])]).then(([archivos, envios]) => {
+        if (!activo) return;
+        const nuevosArchivos = archivos.filter((d) => d.id_documento > ultimoArchivoVisto(usuario.correo)).length;
+        const nuevosEnvios = envios.filter((e) => e.id_envio > ultimoEnvioVisto(usuario.correo)).length;
+        setArchivosNuevos(nuevosArchivos + nuevosEnvios);
+        const a = archivos[0];
+        const e = envios[0];
+        if (mayorEnvio >= 0 && e && e.id_envio > mayorEnvio) {
+          setAlerta({
+            titulo: e.veces > 1 ? 'Propuesta corregida enviada otra vez' : 'Nueva propuesta para revisar',
+            texto: `${e.nombre_estudiante ?? 'Un estudiante'} te envió su anteproyecto a revisión.`,
+          });
+        } else if (mayorArchivo >= 0 && a && a.id_documento > mayorArchivo) {
+          setAlerta({ titulo: 'Nuevo archivo de un estudiante', texto: `${a.nombre_estudiante ?? 'Un estudiante'} subió "${a.nombre_archivo}".` });
+        }
+        mayorArchivo = Math.max(mayorArchivo, a?.id_documento ?? 0);
+        mayorEnvio = Math.max(mayorEnvio, e?.id_envio ?? 0);
+      });
     revisar();
     const alVer = () => {
       setArchivosNuevos(0);
@@ -183,7 +193,7 @@ export function AppShell() {
               <item.icon size={17} />
               <span className="flex-1">{item.label}</span>
               {item.to === '/asesor/bandeja' && archivosNuevos > 0 && (
-                <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${archivosNuevos} archivos nuevos`}>
+                <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${archivosNuevos} novedades`}>
                   {archivosNuevos}
                 </span>
               )}
@@ -214,10 +224,8 @@ export function AppShell() {
           <div className="flex items-start gap-3">
             <Bell size={18} className="text-gold-dark mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-[14.5px]">Nuevo archivo de un estudiante</p>
-              <p className="text-[13px] text-slate-soft mt-0.5 break-words">
-                {alerta.nombre_estudiante ?? 'Un estudiante'} subió "{alerta.nombre_archivo}".
-              </p>
+              <p className="font-medium text-[14.5px]">{alerta.titulo}</p>
+              <p className="text-[13px] text-slate-soft mt-0.5 break-words">{alerta.texto}</p>
               <button
                 className="mt-2 text-[13px] text-gold-dark underline"
                 onClick={() => {

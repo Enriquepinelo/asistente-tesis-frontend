@@ -51,6 +51,7 @@ export default function Revisiones() {
   const [obs, setObs] = useState<Observacion[]>([]);
   const [docs, setDocs] = useState<Record<number, DocumentoRevision[]>>({});
   const [cargando, setCargando] = useState(true);
+  const [sinEnviar, setSinEnviar] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [vistaAnterior] = useState(() => ultimaVista(usuario?.correo));
   const [docVistoAntes] = useState(() => ultimoDocAsesorVisto(usuario?.correo));
@@ -60,7 +61,10 @@ export default function Revisiones() {
   useEffect(() => {
     Promise.all([api.get(endpoints.propuestas), cargarObservaciones()])
       .then(([{ data }, o]) => {
-        const lista: PropuestaGenerada[] = data.propuestas ?? data;
+        const todas: PropuestaGenerada[] = data.propuestas ?? data;
+        // Aquí solo aparece lo que el estudiante envió a su asesor; lo demás son borradores.
+        const lista = todas.filter((p) => p.fecha_envio);
+        setSinEnviar(todas.length - lista.length);
         setPropuestas(lista);
         setObs(o);
         // Si hay propuestas con ajustes, se abre esa pestaña primero porque es lo que necesita atención.
@@ -105,6 +109,14 @@ export default function Revisiones() {
 
       {error && <p className="text-danger text-[14px]">{error}</p>}
       {cargando && <p className="text-slate-soft">Cargando…</p>}
+
+      {!cargando && sinEnviar > 0 && (
+        <p className="rounded-sm border border-paper-300 bg-white px-4 py-3 text-[14px] text-slate-soft">
+          Aquí aparecen solo las propuestas que enviaste a tu asesor. Para enviar una, ábrela en{' '}
+          <button className="text-gold-dark underline" onClick={() => navigate('/estudiante/propuesta')}>Mi propuesta</button>{' '}
+          y usa "Enviar a revisión".
+        </p>
+      )}
 
       {docsNuevos > 0 && (
         <p role="status" className="rounded-sm border border-gold/40 bg-gold/10 px-4 py-3 text-[14.5px] aparecer">

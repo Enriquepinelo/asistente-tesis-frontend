@@ -7,6 +7,11 @@ import type { PropuestaGenerada } from '../../types';
 import {
   ACCEPT_ARCHIVOS,
   archivosDeEstudiantes,
+  enviosRecientes,
+  marcarEnviosVistos,
+  temaDeEnvio,
+  ultimoEnvioVisto,
+  type EnvioReciente,
   descargarDocumento,
   listarDocumentos,
   marcarArchivosVistos,
@@ -114,6 +119,8 @@ export default function BandejaRevision() {
   // Se guarda cuál era el último archivo visto al entrar, para resaltar lo que llegó después.
   const [vistoAlEntrar] = useState(() => ultimoArchivoVisto(usuario?.correo));
   const [archivosNuevos, setArchivosNuevos] = useState<ArchivoEstudiante[]>([]);
+  const [envioVistoAlEntrar] = useState(() => ultimoEnvioVisto(usuario?.correo));
+  const [enviosNuevos, setEnviosNuevos] = useState<EnvioReciente[]>([]);
   const [propuestas, setPropuestas] = useState<PropuestaRevision[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +152,17 @@ export default function BandejaRevision() {
       .catch(() => undefined);
   }, [vistoAlEntrar, usuario?.correo]);
 
+  useEffect(() => {
+    enviosRecientes()
+      .then((lista) => {
+        setEnviosNuevos(lista.filter((e) => e.id_envio > envioVistoAlEntrar));
+        marcarEnviosVistos(usuario?.correo, lista);
+      })
+      .catch(() => undefined);
+  }, [envioVistoAlEntrar, usuario?.correo]);
+
   const propuestasConNuevo = new Set(archivosNuevos.map((d) => d.id_propuesta));
+  const propuestasRecienEnviadas = new Set(enviosNuevos.map((e) => e.id_propuesta));
 
   function irAPropuesta(id: number) {
     setAbierta(id);
@@ -318,6 +335,24 @@ export default function BandejaRevision() {
         </div>
       </div>
 
+      {enviosNuevos.length > 0 && (
+        <div role="status" className="rounded-sm border border-ink-600/30 bg-ink-600/5 px-5 py-4 aparecer">
+          <p className="flex items-center gap-2 font-medium text-[15px]">
+            <Bell size={17} className="text-ink-600" />
+            {enviosNuevos.length === 1 ? '1 propuesta nueva enviada a revisión' : `${enviosNuevos.length} propuestas nuevas enviadas a revisión`}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {enviosNuevos.slice(0, 5).map((e) => (
+              <li key={e.id_envio} className="flex flex-wrap items-center gap-x-2 text-[14px]">
+                <span className="font-medium">{e.nombre_estudiante ?? 'Estudiante'}</span>
+                <span className="text-slate-soft">{e.veces > 1 ? 'reenvió corregida' : 'envió'} "{temaDeEnvio(e)}", {fechaLocal(e.fecha_envio)}</span>
+                <button className="text-gold-dark underline" onClick={() => irAPropuesta(e.id_propuesta)}>Ver propuesta</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {archivosNuevos.length > 0 && (
         <div role="status" className="rounded-sm border border-gold/40 bg-gold/10 px-5 py-4 aparecer">
           <p className="flex items-center gap-2 font-medium text-[15px]">
@@ -380,6 +415,9 @@ export default function BandejaRevision() {
                             {p.fecha_generacion ? fechaLocal(p.fecha_generacion) : ''}{p.area_interes ? `, área: ${p.area_interes}` : ''}
                           </p>
                           <h3 className="text-[16px] font-medium m-0">{p.propuesta_tema_1}</h3>
+                          {propuestasRecienEnviadas.has(p.id_propuesta) && (
+                            <span className="pill bg-ink-600/10 text-ink-600 mt-1.5 mr-2">Recién enviada</span>
+                          )}
                           {propuestasConNuevo.has(p.id_propuesta) && (
                             <span className="pill bg-gold/15 text-gold-dark mt-1.5">Archivo nuevo del estudiante</span>
                           )}
@@ -387,6 +425,15 @@ export default function BandejaRevision() {
                         <EstadoPill estado={p.estado} />
                       </div>
 
+                      {(p.mensaje_estudiante || (p.veces_enviada ?? 1) > 1) && (
+                        <div className="mt-2.5 rounded-sm bg-paper-200 px-4 py-2.5 text-[14px]">
+                          <p className="text-[12.5px] text-slate-soft mb-0.5">
+                            {(p.veces_enviada ?? 1) > 1 ? `Reenviada por el estudiante (envío ${p.veces_enviada})` : 'Mensaje del estudiante'}
+                            {p.fecha_envio ? `, ${fechaLocal(p.fecha_envio)}` : ''}
+                          </p>
+                          {p.mensaje_estudiante && <p className="leading-relaxed">{p.mensaje_estudiante}</p>}
+                        </div>
+                      )}
                       {!detalle && <p className="mt-2 text-[14px] text-slate leading-relaxed line-clamp-2">{p.planteamiento_problema}</p>}
 
                       {detalle && (
