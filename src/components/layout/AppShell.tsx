@@ -14,7 +14,14 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cargarObservaciones, ultimaVista } from '../../api/revisiones';
-import { archivosDeEstudiantes, ultimoArchivoVisto, type ArchivoEstudiante } from '../../api/documentos';
+import {
+  archivosDeEstudiantes,
+  esDelAsesor,
+  misDocumentos,
+  ultimoArchivoVisto,
+  ultimoDocAsesorVisto,
+  type ArchivoEstudiante,
+} from '../../api/documentos';
 import { useAuth } from '../../context/AuthContext';
 import type { Rol } from '../../types';
 
@@ -54,6 +61,40 @@ export function AppShell() {
   const [nuevas, setNuevas] = useState(0);
   const [archivosNuevos, setArchivosNuevos] = useState(0);
   const [alerta, setAlerta] = useState<ArchivoEstudiante | null>(null);
+  const [docsNuevos, setDocsNuevos] = useState(0);
+  const [alertaEst, setAlertaEst] = useState<string | null>(null);
+
+  // Aviso para el estudiante: documentos nuevos que le compartió su asesor.
+  useEffect(() => {
+    if (usuario?.rol !== 'estudiante') return;
+    let activo = true;
+    let mayorConocido = -1;
+    const revisar = () =>
+      misDocumentos()
+        .then((todos) => {
+          if (!activo) return;
+          const delAsesor = todos.filter(esDelAsesor);
+          const vistos = ultimoDocAsesorVisto(usuario.correo);
+          setDocsNuevos(delAsesor.filter((d) => d.id_documento > vistos).length);
+          const ultimo = delAsesor.reduce((a, d) => (!a || d.id_documento > a.id_documento ? d : a), null as (typeof delAsesor)[number] | null);
+          const mayor = ultimo?.id_documento ?? 0;
+          if (mayorConocido >= 0 && mayor > mayorConocido && ultimo) setAlertaEst(ultimo.nombre_archivo);
+          mayorConocido = Math.max(mayorConocido, mayor);
+        })
+        .catch(() => undefined);
+    revisar();
+    const alVer = () => {
+      setDocsNuevos(0);
+      setAlertaEst(null);
+    };
+    window.addEventListener('docs-asesor-vistos', alVer);
+    const intervalo = window.setInterval(revisar, 30000);
+    return () => {
+      activo = false;
+      window.removeEventListener('docs-asesor-vistos', alVer);
+      window.clearInterval(intervalo);
+    };
+  }, [usuario?.rol, usuario?.correo]);
   const navigate = useNavigate();
 
   // Aviso para el asesor y el coordinador: archivos nuevos que subieron los estudiantes.
@@ -146,9 +187,9 @@ export function AppShell() {
                   {archivosNuevos}
                 </span>
               )}
-              {item.to === '/estudiante/revisiones' && nuevas > 0 && (
-                <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${nuevas} nuevas`}>
-                  {nuevas}
+              {item.to === '/estudiante/revisiones' && nuevas + docsNuevos > 0 && (
+                <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${nuevas + docsNuevos} novedades`}>
+                  {nuevas + docsNuevos}
                 </span>
               )}
             </NavLink>
@@ -188,6 +229,30 @@ export function AppShell() {
               </button>
             </div>
             <button aria-label="Cerrar aviso" onClick={() => setAlerta(null)} className="text-slate-soft hover:text-slate">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {alertaEst && (
+        <div role="alert" className="fixed top-5 right-5 z-50 w-80 rounded-sm border border-gold/40 bg-white shadow-lg px-4 py-3.5 aparecer">
+          <div className="flex items-start gap-3">
+            <Bell size={18} className="text-gold-dark mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-[14.5px]">Tu asesor te compartió un documento</p>
+              <p className="text-[13px] text-slate-soft mt-0.5 break-words">"{alertaEst}"</p>
+              <button
+                className="mt-2 text-[13px] text-gold-dark underline"
+                onClick={() => {
+                  setAlertaEst(null);
+                  navigate('/estudiante/revisiones');
+                }}
+              >
+                Ver en Revisiones
+              </button>
+            </div>
+            <button aria-label="Cerrar aviso" onClick={() => setAlertaEst(null)} className="text-slate-soft hover:text-slate">
               <X size={16} />
             </button>
           </div>

@@ -7,7 +7,15 @@ import { useAuth } from '../../context/AuthContext';
 import { cargarObservaciones, marcarVistas, ultimaVista, type Observacion } from '../../api/revisiones';
 import { abrirPropuesta, desdeBaseDeDatos } from '../../api/propuestaFlujo';
 import type { PropuestaGenerada } from '../../types';
-import { descargarDocumento, misDocumentos, tamano, type DocumentoRevision } from '../../api/documentos';
+import {
+  descargarDocumento,
+  esDelAsesor,
+  marcarDocsAsesorVistos,
+  misDocumentos,
+  tamano,
+  ultimoDocAsesorVisto,
+  type DocumentoRevision,
+} from '../../api/documentos';
 import { SubirDocumento } from '../../components/SubirDocumento';
 
 type Estado = PropuestaGenerada['estado'];
@@ -45,6 +53,7 @@ export default function Revisiones() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vistaAnterior] = useState(() => ultimaVista(usuario?.correo));
+  const [docVistoAntes] = useState(() => ultimoDocAsesorVisto(usuario?.correo));
   const [pestana, setPestana] = useState<Pestana | null>(null);
   const [abierta, setAbierta] = useState<number | null>(null);
 
@@ -69,6 +78,7 @@ export default function Revisiones() {
         const porPropuesta: Record<number, DocumentoRevision[]> = {};
         for (const d of todos) (porPropuesta[d.id_propuesta] ??= []).push(d);
         setDocs(porPropuesta);
+        marcarDocsAsesorVistos(usuario?.correo, todos);
       })
       .catch(() => undefined);
   }
@@ -77,7 +87,8 @@ export default function Revisiones() {
   const conteo = (v: Pestana) => (v === 'todas' ? propuestas.length : propuestas.filter((p) => p.estado === v).length);
   const visibles = propuestas.filter((p) => !pestana || pestana === 'todas' || p.estado === pestana);
   const nuevas = obs.filter((o) => o.id_recomendacion > vistaAnterior).length;
-  const totalDocs = Object.values(docs).reduce((a, l) => a + l.length, 0);
+  const esDocNuevo = (d: DocumentoRevision) => esDelAsesor(d) && d.id_documento > docVistoAntes;
+  const docsNuevos = Object.values(docs).flat().filter(esDocNuevo).length;
 
   function verCompleta(p: PropuestaGenerada) {
     abrirPropuesta(usuario?.correo, desdeBaseDeDatos(p));
@@ -95,6 +106,12 @@ export default function Revisiones() {
       {error && <p className="text-danger text-[14px]">{error}</p>}
       {cargando && <p className="text-slate-soft">Cargando…</p>}
 
+      {docsNuevos > 0 && (
+        <p role="status" className="rounded-sm border border-gold/40 bg-gold/10 px-4 py-3 text-[14.5px] aparecer">
+          Tu asesor te compartió {docsNuevos === 1 ? '1 documento nuevo' : `${docsNuevos} documentos nuevos`}. Están marcados como <strong>Nuevo</strong> en la propuesta correspondiente.
+        </p>
+      )}
+
       {!cargando && !error && (
         <>
           {/* ---------- Resumen ---------- */}
@@ -111,9 +128,9 @@ export default function Revisiones() {
             ))}
             <div className="folio px-5 py-4">
               <p className="text-[13px] text-slate-soft">Novedades</p>
-              <p className="font-serif text-3xl tabular-nums">{nuevas}</p>
+              <p className="font-serif text-3xl tabular-nums">{nuevas + docsNuevos}</p>
               <p className="text-[12px] text-slate-soft">
-                {nuevas === 1 ? 'observación nueva' : 'observaciones nuevas'}, {totalDocs} {totalDocs === 1 ? 'documento' : 'documentos'}
+                {nuevas} {nuevas === 1 ? 'observación nueva' : 'observaciones nuevas'}, {docsNuevos} {docsNuevos === 1 ? 'documento nuevo' : 'documentos nuevos'}
               </p>
             </div>
           </section>
@@ -149,7 +166,7 @@ export default function Revisiones() {
               {visibles.map((p) => {
                 const suyas = obsDe(p);
                 const susDocs = docs[p.id_propuesta] ?? [];
-                const hayNuevo = suyas.some((o) => o.id_recomendacion > vistaAnterior);
+                const hayNuevo = suyas.some((o) => o.id_recomendacion > vistaAnterior) || susDocs.some(esDocNuevo);
                 const abierto = abierta === p.id_propuesta;
                 return (
                   <li key={p.id_propuesta}>
@@ -188,6 +205,7 @@ export default function Revisiones() {
                                   <FileText size={15} className="text-slate-soft" />
                                   <button className="underline" onClick={() => descargarDocumento(d).catch(() => undefined)}>{d.nombre_archivo}</button>
                                   <span className="text-[12.5px] text-slate-soft">{tamano(d.tamano_bytes)}, {fecha(d.fecha_subida)}</span>
+                                  {esDocNuevo(d) && <span className="pill bg-gold/15 text-gold-dark">Nuevo</span>}
                                 </li>
                               ))}
                             </ul>

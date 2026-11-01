@@ -111,3 +111,27 @@ export function marcarArchivosVistos(correo: string | undefined, lista: ArchivoE
   }
   window.dispatchEvent(new Event('archivos-vistos'));
 }
+
+/* ---------- Avisos para el estudiante: documentos nuevos de su asesor ---------- */
+
+const claveDocsAsesor = (correo?: string) => `docs_asesor_vistos_${correo ?? ''}`;
+
+export function ultimoDocAsesorVisto(correo?: string): number {
+  try {
+    return Number(localStorage.getItem(claveDocsAsesor(correo)) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export const esDelAsesor = (d: DocumentoRevision) => d.rol_subio !== 'estudiante';
+
+export function marcarDocsAsesorVistos(correo: string | undefined, lista: DocumentoRevision[]) {
+  const max = lista.filter(esDelAsesor).reduce((m, d) => Math.max(m, d.id_documento), 0);
+  try {
+    localStorage.setItem(claveDocsAsesor(correo), String(Math.max(max, ultimoDocAsesorVisto(correo))));
+  } catch {
+    /* sin almacenamiento: el aviso solo se vuelve a mostrar */
+  }
+  window.dispatchEvent(new Event('docs-asesor-vistos'));
+}
