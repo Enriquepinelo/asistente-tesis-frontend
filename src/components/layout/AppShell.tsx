@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import {
   FileText,
   LayoutGrid,
@@ -9,9 +9,12 @@ import {
   BarChart3,
   GraduationCap,
   MessageSquare,
+  Bell,
+  X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cargarObservaciones, ultimaVista } from '../../api/revisiones';
+import { archivosDeEstudiantes, ultimoArchivoVisto, type ArchivoEstudiante } from '../../api/documentos';
 import { useAuth } from '../../context/AuthContext';
 import type { Rol } from '../../types';
 
@@ -49,6 +52,40 @@ const rolEtiqueta: Record<Rol, string> = {
 export function AppShell() {
   const { usuario, cerrarSesion } = useAuth();
   const [nuevas, setNuevas] = useState(0);
+  const [archivosNuevos, setArchivosNuevos] = useState(0);
+  const [alerta, setAlerta] = useState<ArchivoEstudiante | null>(null);
+  const navigate = useNavigate();
+
+  // Aviso para el asesor y el coordinador: archivos nuevos que subieron los estudiantes.
+  // Se revisa cada 30 segundos; si llega uno nuevo mientras está en el sistema, aparece una alerta.
+  useEffect(() => {
+    if (usuario?.rol !== 'asesor') return;
+    let activo = true;
+    let mayorConocido = -1;
+    const revisar = () =>
+      archivosDeEstudiantes()
+        .then((lista) => {
+          if (!activo) return;
+          const vistos = ultimoArchivoVisto(usuario.correo);
+          setArchivosNuevos(lista.filter((d) => d.id_documento > vistos).length);
+          const mayor = lista[0]?.id_documento ?? 0;
+          if (mayorConocido >= 0 && mayor > mayorConocido && lista[0]) setAlerta(lista[0]);
+          mayorConocido = Math.max(mayorConocido, mayor);
+        })
+        .catch(() => undefined);
+    revisar();
+    const alVer = () => {
+      setArchivosNuevos(0);
+      setAlerta(null);
+    };
+    window.addEventListener('archivos-vistos', alVer);
+    const intervalo = window.setInterval(revisar, 30000);
+    return () => {
+      activo = false;
+      window.removeEventListener('archivos-vistos', alVer);
+      window.clearInterval(intervalo);
+    };
+  }, [usuario?.rol, usuario?.correo]);
 
   // Aviso para el estudiante: cuantas observaciones nuevas dejo su asesor.
   useEffect(() => {
@@ -104,6 +141,11 @@ export function AppShell() {
             >
               <item.icon size={17} />
               <span className="flex-1">{item.label}</span>
+              {item.to === '/asesor/bandeja' && archivosNuevos > 0 && (
+                <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${archivosNuevos} archivos nuevos`}>
+                  {archivosNuevos}
+                </span>
+              )}
               {item.to === '/estudiante/revisiones' && nuevas > 0 && (
                 <span className="rounded-full bg-gold text-ink text-[12px] font-semibold px-2 py-0.5" aria-label={`${nuevas} nuevas`}>
                   {nuevas}
@@ -125,6 +167,32 @@ export function AppShell() {
           </button>
         </div>
       </aside>
+
+      {alerta && (
+        <div role="alert" className="fixed top-5 right-5 z-50 w-80 rounded-sm border border-gold/40 bg-white shadow-lg px-4 py-3.5 aparecer">
+          <div className="flex items-start gap-3">
+            <Bell size={18} className="text-gold-dark mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-[14.5px]">Nuevo archivo de un estudiante</p>
+              <p className="text-[13px] text-slate-soft mt-0.5 break-words">
+                {alerta.nombre_estudiante ?? 'Un estudiante'} subió "{alerta.nombre_archivo}".
+              </p>
+              <button
+                className="mt-2 text-[13px] text-gold-dark underline"
+                onClick={() => {
+                  setAlerta(null);
+                  navigate('/asesor/bandeja');
+                }}
+              >
+                Ver en la bandeja
+              </button>
+            </div>
+            <button aria-label="Cerrar aviso" onClick={() => setAlerta(null)} className="text-slate-soft hover:text-slate">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 min-w-0">
         <div className="mx-auto max-w-5xl px-8 py-10">

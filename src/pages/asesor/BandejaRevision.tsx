@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronRight, FileDown, FileText, Loader2, Search, Upload } from 'lucide-react';
+import { Bell, CheckCircle2, ChevronDown, ChevronRight, FileDown, FileText, Loader2, Search, Upload } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { api, endpoints } from '../../api/client';
 import { EstadoPill } from '../../components/EstadoPill';
 import type { PropuestaGenerada } from '../../types';
-import { ACCEPT_ARCHIVOS, descargarDocumento, listarDocumentos, subirDocumento, tamano, type DocumentoRevision } from '../../api/documentos';
+import {
+  ACCEPT_ARCHIVOS,
+  archivosDeEstudiantes,
+  descargarDocumento,
+  listarDocumentos,
+  marcarArchivosVistos,
+  subirDocumento,
+  tamano,
+  ultimoArchivoVisto,
+  type ArchivoEstudiante,
+  type DocumentoRevision,
+} from '../../api/documentos';
 
 type Estado = PropuestaGenerada['estado'];
 interface Observacion {
@@ -98,6 +110,10 @@ async function descargarWord(p: PropuestaRevision) {
 }
 
 export default function BandejaRevision() {
+  const { usuario } = useAuth();
+  // Se guarda cuál era el último archivo visto al entrar, para resaltar lo que llegó después.
+  const [vistoAlEntrar] = useState(() => ultimoArchivoVisto(usuario?.correo));
+  const [archivosNuevos, setArchivosNuevos] = useState<ArchivoEstudiante[]>([]);
   const [propuestas, setPropuestas] = useState<PropuestaRevision[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +134,24 @@ export default function BandejaRevision() {
   const [subidoListo, setSubidoListo] = useState<{ id: number; nombre: string } | null>(null);
 
   useEffect(cargarLista, []);
+
+  // Archivos que los estudiantes subieron desde la última visita del asesor.
+  useEffect(() => {
+    archivosDeEstudiantes()
+      .then((lista) => {
+        setArchivosNuevos(lista.filter((d) => d.id_documento > vistoAlEntrar));
+        marcarArchivosVistos(usuario?.correo, lista);
+      })
+      .catch(() => undefined);
+  }, [vistoAlEntrar, usuario?.correo]);
+
+  const propuestasConNuevo = new Set(archivosNuevos.map((d) => d.id_propuesta));
+
+  function irAPropuesta(id: number) {
+    setAbierta(id);
+    cargarDocs(id);
+    setTimeout(() => document.getElementById(`propuesta-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
 
   function cargarLista() {
     setCargando(true);
@@ -284,6 +318,25 @@ export default function BandejaRevision() {
         </div>
       </div>
 
+      {archivosNuevos.length > 0 && (
+        <div role="status" className="rounded-sm border border-gold/40 bg-gold/10 px-5 py-4 aparecer">
+          <p className="flex items-center gap-2 font-medium text-[15px]">
+            <Bell size={17} className="text-gold-dark" />
+            {archivosNuevos.length === 1 ? 'Tienes 1 archivo nuevo' : `Tienes ${archivosNuevos.length} archivos nuevos`} de tus estudiantes
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {archivosNuevos.slice(0, 5).map((d) => (
+              <li key={d.id_documento} className="flex flex-wrap items-center gap-x-2 text-[14px]">
+                <FileText size={14} className="text-slate-soft" />
+                <span className="font-medium">{d.nombre_estudiante ?? 'Estudiante'}</span>
+                <span className="text-slate-soft">subió "{d.nombre_archivo}" ({tamano(d.tamano_bytes)}), {fechaLocal(d.fecha_subida)}</span>
+                <button className="text-gold-dark underline" onClick={() => irAPropuesta(d.id_propuesta)}>Ver propuesta</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {error && revisando === null && <p className="text-danger text-[14px]">{error}</p>}
       {aviso && <p className="text-ok text-[14px]">{aviso}</p>}
       {cargando && <p className="text-slate-soft">Cargando propuestas…</p>}
@@ -320,13 +373,16 @@ export default function BandejaRevision() {
                   const enRevision = revisando === p.id_propuesta;
                   const misDocs = docs[p.id_propuesta];
                   return (
-                    <li key={p.id_propuesta} className="px-6 py-5">
+                    <li key={p.id_propuesta} id={`propuesta-${p.id_propuesta}`} className="px-6 py-5 scroll-mt-6">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-[12.5px] text-slate-soft">
                             {p.fecha_generacion ? fechaLocal(p.fecha_generacion) : ''}{p.area_interes ? `, área: ${p.area_interes}` : ''}
                           </p>
                           <h3 className="text-[16px] font-medium m-0">{p.propuesta_tema_1}</h3>
+                          {propuestasConNuevo.has(p.id_propuesta) && (
+                            <span className="pill bg-gold/15 text-gold-dark mt-1.5">Archivo nuevo del estudiante</span>
+                          )}
                         </div>
                         <EstadoPill estado={p.estado} />
                       </div>

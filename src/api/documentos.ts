@@ -73,3 +73,41 @@ export async function descargarDocumento(doc: DocumentoRevision) {
 export function tamano(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/* ---------- Avisos para el asesor: archivos nuevos de los estudiantes ---------- */
+
+export interface ArchivoEstudiante {
+  id_documento: number;
+  id_propuesta: number;
+  nombre_archivo: string;
+  tamano_bytes: number;
+  fecha_subida: string;
+  nombre_estudiante: string | null;
+  tema: string | null;
+}
+
+export async function archivosDeEstudiantes(): Promise<ArchivoEstudiante[]> {
+  const { data } = await api.get('/propuestas/documentos-estudiantes');
+  return data.documentos ?? [];
+}
+
+const claveVistos = (correo?: string) => `archivos_estudiantes_vistos_${correo ?? ''}`;
+
+// Último archivo de estudiante que el asesor ya vio (por número de documento).
+export function ultimoArchivoVisto(correo?: string): number {
+  try {
+    return Number(localStorage.getItem(claveVistos(correo)) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function marcarArchivosVistos(correo: string | undefined, lista: ArchivoEstudiante[]) {
+  const max = lista.reduce((m, d) => Math.max(m, d.id_documento), 0);
+  try {
+    localStorage.setItem(claveVistos(correo), String(Math.max(max, ultimoArchivoVisto(correo))));
+  } catch {
+    /* sin almacenamiento: el aviso solo se vuelve a mostrar */
+  }
+  window.dispatchEvent(new Event('archivos-vistos'));
+}
