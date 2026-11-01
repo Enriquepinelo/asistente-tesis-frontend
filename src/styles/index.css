@@ -65,3 +65,19 @@ h1, h2, h3, h4 {
 .pill {
   @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
 }
+
+/* Indicador de carga mientras la IA genera la respuesta */
+@keyframes barra-indeterminada {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.barra-indeterminada {
+  animation: barra-indeterminada 1.4s ease-in-out infinite;
+}
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.aparecer {
+  animation: aparecer 0.25s ease-out;
+}

@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { generarTemas, generarDesarrollo, mensajeError } from '../../api/propuestaFlujo';
+import { EstadoGeneracion } from '../../components/EstadoGeneracion';
 
 type Opcion = 'no' | 'si';
 
@@ -15,6 +16,7 @@ export default function FormularioTesis() {
   const [detalle, setDetalle] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [listo, setListo] = useState(false);
 
   async function manejarEnvio(e: FormEvent) {
     e.preventDefault();
@@ -28,6 +30,9 @@ export default function FormularioTesis() {
         // Ya trae tema: se salta directo al desarrollo completo.
         await generarDesarrollo(usuario, area, tema, detalle);
       }
+      // Se muestra el aviso verde un momento antes de pasar a "Mi propuesta".
+      setListo(true);
+      await new Promise((r) => setTimeout(r, 1500));
       navigate('/estudiante/propuesta');
     } catch (err: any) {
       setError(
@@ -122,6 +127,18 @@ export default function FormularioTesis() {
           />
         </div>
 
+        {(enviando || listo) && (
+          <EstadoGeneracion
+            estado={listo ? 'listo' : 'generando'}
+            titulo={tieneTema === 'no' ? 'Generando propuestas de tema' : 'Generando tu anteproyecto'}
+            mensajeListo={
+              tieneTema === 'no'
+                ? 'Los temas están listos. Te llevamos a elegir uno.'
+                : 'Tu anteproyecto está listo. Te llevamos a verlo.'
+            }
+          />
+        )}
+
         {error && (
           <p className="text-[13.5px] text-danger bg-danger/8 border border-danger/20 rounded-sm px-3.5 py-2.5">
             {error}
@@ -132,9 +149,9 @@ export default function FormularioTesis() {
           <p className="text-[13px] text-slate-soft">
             La generación con IA puede tardar entre 10 y 40 segundos.
           </p>
-          <button type="submit" disabled={enviando} className="btn-gold">
-            {enviando
-              ? 'Generando…'
+          <button type="submit" disabled={enviando || listo} className="btn-gold inline-flex items-center gap-2">
+            {enviando || listo
+              ? listo ? 'Listo' : 'Generando…'
               : tieneTema === 'no'
               ? 'Proponer temas'
               : 'Generar propuesta'}

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, FileDown, FileText, Search, Upload } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronRight, FileDown, FileText, Loader2, Search, Upload } from 'lucide-react';
 import { api, endpoints } from '../../api/client';
 import { EstadoPill } from '../../components/EstadoPill';
 import type { PropuestaGenerada } from '../../types';
-import { descargarDocumento, listarDocumentos, subirDocumento, tamano, type DocumentoRevision } from '../../api/documentos';
+import { ACCEPT_ARCHIVOS, descargarDocumento, listarDocumentos, subirDocumento, tamano, type DocumentoRevision } from '../../api/documentos';
 
 type Estado = PropuestaGenerada['estado'];
 interface Observacion {
@@ -114,6 +114,8 @@ export default function BandejaRevision() {
   const [guardando, setGuardando] = useState(false);
   const [docs, setDocs] = useState<Record<number, DocumentoRevision[] | string>>({});
   const [subiendo, setSubiendo] = useState<number | null>(null);
+  const [progreso, setProgreso] = useState(0);
+  const [subidoListo, setSubidoListo] = useState<{ id: number; nombre: string } | null>(null);
 
   useEffect(cargarLista, []);
 
@@ -190,11 +192,14 @@ export default function BandejaRevision() {
   async function subir(id: number, archivo?: File) {
     if (!archivo) return;
     setSubiendo(id);
+    setProgreso(0);
+    setSubidoListo(null);
     setAviso(null);
     setError(null);
     try {
-      await subirDocumento(id, archivo);
-      setAviso(`Documento "${archivo.name}" subido. El estudiante podrá descargarlo.`);
+      await subirDocumento(id, archivo, setProgreso);
+      setSubidoListo({ id, nombre: archivo.name });
+      setTimeout(() => setSubidoListo((actual) => (actual?.id === id ? null : actual)), 6000);
       cargarDocs(id);
     } catch (err: any) {
       setError(err?.response?.data?.mensaje || err?.message || 'No se pudo subir el documento.');
@@ -369,11 +374,12 @@ export default function BandejaRevision() {
                               </ul>
                             )}
                             <label className="btn-ghost !px-3.5 !py-1.5 text-[13px] inline-flex items-center gap-2 cursor-pointer mt-1">
-                              <Upload size={14} /> {subiendo === p.id_propuesta ? 'Subiendo…' : 'Subir documento con observaciones (PDF o Word)'}
+                              {subiendo === p.id_propuesta ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                              {subiendo === p.id_propuesta ? 'Subiendo…' : 'Subir documento con observaciones'}
                               <input
                                 type="file"
                                 className="hidden"
-                                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                accept={ACCEPT_ARCHIVOS}
                                 disabled={subiendo === p.id_propuesta}
                                 onChange={(e) => {
                                   subir(p.id_propuesta, e.target.files?.[0]);
@@ -381,6 +387,25 @@ export default function BandejaRevision() {
                                 }}
                               />
                             </label>
+                            <p className="text-[12.5px] text-slate-soft mt-1.5">
+                              PDF, Word, Excel, PowerPoint o imagen (PNG, JPG). Máximo 5 MB.
+                            </p>
+                            {subiendo === p.id_propuesta && (
+                              <div className="mt-2 max-w-sm aparecer" role="status" aria-live="polite">
+                                <div className="flex justify-between text-[12.5px] text-slate-soft mb-1">
+                                  <span>{progreso < 100 ? 'Subiendo archivo…' : 'Verificando el archivo en el servidor…'}</span>
+                                  <span className="tabular-nums">{progreso}%</span>
+                                </div>
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper-200">
+                                  <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${progreso}%` }} />
+                                </div>
+                              </div>
+                            )}
+                            {subidoListo?.id === p.id_propuesta && (
+                              <p role="status" className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-ok/30 bg-ok/10 px-3 py-1.5 text-[13px] text-ok aparecer">
+                                <CheckCircle2 size={15} /> Listo: "{subidoListo.nombre}" se subió. El estudiante ya puede descargarlo.
+                              </p>
+                            )}
                           </section>
                         </div>
                       )}

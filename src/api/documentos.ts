@@ -21,16 +21,41 @@ export async function misDocumentos(): Promise<DocumentoRevision[]> {
   return data.documentos ?? [];
 }
 
-// Lee el archivo elegido y lo envía en base64 (máximo 5 MB, PDF o Word).
-export async function subirDocumento(idPropuesta: number, archivo: File) {
-  if (archivo.size > 5 * 1024 * 1024) throw new Error('El archivo no puede pasar de 5 MB.');
+// Tipos que acepta el sistema. El backend vuelve a revisar el contenido real del archivo.
+export const EXTENSIONES_PERMITIDAS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'];
+export const ACCEPT_ARCHIVOS = EXTENSIONES_PERMITIDAS.map((e) => '.' + e).join(',');
+export const MAX_BYTES = 5 * 1024 * 1024;
+
+// Revisión rápida antes de enviar, para avisar sin esperar al servidor.
+export function revisarArchivo(archivo: File): string | null {
+  const extension = (archivo.name.split('.').pop() ?? '').toLowerCase();
+  if (!archivo.name.includes('.') || !EXTENSIONES_PERMITIDAS.includes(extension)) {
+    return 'Tipo de archivo no permitido. Se aceptan PDF, Word, Excel, PowerPoint e imágenes PNG o JPG.';
+  }
+  if (archivo.size === 0) return 'El archivo está vacío.';
+  if (archivo.size > MAX_BYTES) return `El archivo pesa ${tamano(archivo.size)}; el máximo es 5 MB.`;
+  return null;
+}
+
+// Lee el archivo elegido y lo envía en base64, informando el avance de la subida (0 a 100).
+export async function subirDocumento(idPropuesta: number, archivo: File, alAvanzar?: (porcentaje: number) => void) {
+  const problema = revisarArchivo(archivo);
+  if (problema) throw new Error(problema);
   const base64 = await new Promise<string>((resolver, rechazar) => {
     const lector = new FileReader();
     lector.onload = () => resolver(String(lector.result).split(',')[1] ?? '');
     lector.onerror = () => rechazar(new Error('No se pudo leer el archivo.'));
     lector.readAsDataURL(archivo);
   });
-  await api.post(`/propuestas/${idPropuesta}/documentos`, { nombre: archivo.name, tipo: archivo.type, base64 });
+  await api.post(
+    `/propuestas/${idPropuesta}/documentos`,
+    { nombre: archivo.name, tipo: archivo.type, base64 },
+    {
+      onUploadProgress: (e) => {
+        if (alAvanzar && e.total) alAvanzar(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+      },
+    }
+  );
 }
 
 // La descarga pasa por el backend con el token, por eso se baja como blob.

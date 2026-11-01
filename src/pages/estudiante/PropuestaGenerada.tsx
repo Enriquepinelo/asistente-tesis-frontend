@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EstadoPill } from '../../components/EstadoPill';
+import { EstadoGeneracion } from '../../components/EstadoGeneracion';
 import { useAuth } from '../../context/AuthContext';
 import {
   leerPropuesta,
@@ -20,6 +21,7 @@ export default function PropuestaGenerada() {
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(true);
+  const [recienGenerada, setRecienGenerada] = useState(false);
 
   // Lee la propuesta desde la base de datos para que se vea en cualquier equipo.
   // Si este navegador ya tiene una, se respeta (puede tener el tema recién elegido)
@@ -59,6 +61,8 @@ export default function PropuestaGenerada() {
         propuesta.temas
       );
       setPropuesta(nueva);
+      setRecienGenerada(true);
+      setTimeout(() => setRecienGenerada(false), 6000);
     } catch (err: any) {
       setError(
         mensajeError(err, 'No se pudo generar el desarrollo del tema. Intenta de nuevo en unos minutos.')
@@ -136,6 +140,12 @@ export default function PropuestaGenerada() {
           })}
         </div>
 
+        {generando && (
+          <div className="mb-4">
+            <EstadoGeneracion estado="generando" titulo="Generando el desarrollo de tu tema" />
+          </div>
+        )}
+
         {error && (
           <p className="text-[13.5px] text-danger bg-danger/8 border border-danger/20 rounded-sm px-3.5 py-2.5 mb-4">
             {error}
@@ -174,6 +184,12 @@ export default function PropuestaGenerada() {
         </div>
         <EstadoPill estado={propuesta.estado_revision ?? 'generada'} />
       </div>
+
+      {recienGenerada && (
+        <div className="mb-6">
+          <EstadoGeneracion estado="listo" mensajeListo="El planteamiento, los objetivos y la justificación ya están generados." />
+        </div>
+      )}
 
       <section className="folio mb-6">
         <div className="folio-header">
