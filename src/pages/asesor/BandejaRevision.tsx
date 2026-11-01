@@ -389,7 +389,7 @@ export default function BandejaRevision() {
                               />
                             </label>
                             <p className="text-[12.5px] text-slate-soft mt-1.5">
-                              PDF, Word, Excel, PowerPoint o imagen (PNG, JPG). Máximo 5 MB.
+                              PDF, Word, Excel, PowerPoint o imagen (PNG, JPG). Máximo 10 MB.
                             </p>
                             {subiendo === p.id_propuesta && (
                               <div className="mt-2 max-w-sm aparecer" role="status" aria-live="polite">

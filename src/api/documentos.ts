@@ -25,7 +25,7 @@ export async function misDocumentos(): Promise<DocumentoRevision[]> {
 // Tipos que acepta el sistema. El backend vuelve a revisar el contenido real del archivo.
 export const EXTENSIONES_PERMITIDAS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'];
 export const ACCEPT_ARCHIVOS = EXTENSIONES_PERMITIDAS.map((e) => '.' + e).join(',');
-export const MAX_BYTES = 5 * 1024 * 1024;
+export const MAX_BYTES = 10 * 1024 * 1024;
 
 // Revisión rápida antes de enviar, para avisar sin esperar al servidor.
 export function revisarArchivo(archivo: File): string | null {
@@ -34,7 +34,7 @@ export function revisarArchivo(archivo: File): string | null {
     return 'Tipo de archivo no permitido. Se aceptan PDF, Word, Excel, PowerPoint e imágenes PNG o JPG.';
   }
   if (archivo.size === 0) return 'El archivo está vacío.';
-  if (archivo.size > MAX_BYTES) return `El archivo pesa ${tamano(archivo.size)}; el máximo es 5 MB.`;
+  if (archivo.size > MAX_BYTES) return `El archivo pesa ${tamano(archivo.size)}; el máximo es 10 MB.`;
   return null;
 }
 
